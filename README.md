@@ -4,6 +4,8 @@ GTK4/libadwaita GUI for configuring the **Redragon M913 Impact Elite** wireless 
 
 Built on top of [m913-ctl](https://github.com/Qehbr/m913-ctl), the CLI configuration tool for the M913 (USB VID `25a7`, PID `fa07`).
 
+![screenshot](screenshot.png "Screenshot")
+
 ## Features
 
 - **DPI profiles** — 5 slots, 100–16000 DPI
