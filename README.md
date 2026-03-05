@@ -15,10 +15,6 @@ Built on top of [m913-ctl](https://github.com/Qehbr/m913-ctl), the CLI configura
 - **Profile management** — save/load INI config files (fully compatible with `m913-ctl --config`)
 - **Settings persistence** — remembers last-applied settings across sessions
 
-## Screenshot
-
-*(coming soon)*
-
 ## Requirements
 
 - Python 3.10+
