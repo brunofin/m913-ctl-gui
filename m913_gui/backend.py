@@ -105,6 +105,88 @@ def load_profile(path: str) -> str:
     return Path(path).read_text()
 
 
+# ── Categorised action list from CLI ──────────────────────────────────
+
+_parsed: dict | None = None
+
+
+def _ensure_parsed() -> None:
+    global _parsed
+    if _parsed is not None:
+        return
+    try:
+        r = subprocess.run(
+            [M913_CTL, "--list-actions"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0:
+            _parsed = _parse_categorised(r.stdout)
+            return
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    _parsed = _fallback_categorised()
+
+
+def _parse_categorised(output: str) -> dict:
+    special: list[str] = []
+    keys: set[str] = set()
+    section: str | None = None
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("("):
+            continue
+        if "Mouse/special" in stripped:
+            section = "mouse"; continue
+        elif "Modifier keys" in stripped:
+            section = "modifiers"; continue
+        elif "Keyboard keys" in stripped:
+            section = "keys"; continue
+        elif "Example" in stripped:
+            section = None; continue
+        if section == "mouse":
+            special.append(stripped)
+        elif section == "keys":
+            for token in stripped.split():
+                keys.add(token)
+    return {"special": special, "keys": keys}
+
+
+def _fallback_categorised() -> dict:
+    return {
+        "special": [
+            "left", "right", "middle", "forward", "backward",
+            "dpi+", "dpi-", "dpi-cycle", "dpi-loop",
+            "fire", "three_click", "led_toggle", "rgb_toggle",
+            "polling_switch", "none", "disable",
+            "media_play", "media_player", "media_next", "media_prev",
+            "media_stop", "media_vol_up", "media_vol_down", "media_mute",
+            "media_email", "media_calc", "media_computer", "media_home",
+            "media_search", "www_forward", "www_back", "www_stop",
+            "www_refresh", "www_favorites", "favorites",
+        ],
+        "keys": {
+            "a","b","c","d","e","f","g","h","i","j","k","l","m",
+            "n","o","p","q","r","s","t","u","v","w","x","y","z",
+            "0","1","2","3","4","5","6","7","8","9",
+            "f1","f2","f3","f4","f5","f6","f7","f8","f9","f10",
+            "f11","f12","enter","space","tab","backspace","esc","delete",
+            "insert","home","end","pageup","pagedown",
+        },
+    }
+
+
+def list_special_actions() -> list[str]:
+    """Non-keyboard actions for the button mapping dropdown."""
+    _ensure_parsed()
+    return _parsed["special"]
+
+
+def get_valid_keys() -> set[str]:
+    """Valid keyboard key names for keybind validation."""
+    _ensure_parsed()
+    return _parsed["keys"]
+
+
 def save_last(ini_content: str) -> None:
     """Persist the last-applied config to ~/.config/m913-gui/last.ini."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
