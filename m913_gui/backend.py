@@ -64,8 +64,13 @@ def build_ini(
 def apply_ini(ini_content: str) -> tuple[bool, str]:
     """Write INI to a temp file and apply via m913-ctl --config.
 
-    Returns (success, output_text).
-    """
+    Returns (success, output_text)."""
+
+    # Verify connectivity first
+    probe_out = probe()
+    if "Connected" not in probe_out:
+        return False, f"Probe failed: {probe_out.strip()}"
+
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".ini", prefix="m913_gui_", delete=False
     ) as f:
@@ -77,7 +82,7 @@ def apply_ini(ini_content: str) -> tuple[bool, str]:
             [M913_CTL, "--config", tmp_path],
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=30,
         )
         output = r.stdout + r.stderr
         return r.returncode == 0, output
@@ -86,6 +91,7 @@ def apply_ini(ini_content: str) -> tuple[bool, str]:
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
+    
 
 def apply_settings(**kwargs) -> tuple[bool, str]:
     """Build INI from kwargs and apply. See build_ini() for params."""
