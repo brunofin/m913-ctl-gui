@@ -92,13 +92,21 @@ _GDK_KEY_MAP.update({
 })
 
 _MODIFIER_KEYVALS = {
-    Gdk.KEY_Control_L, Gdk.KEY_Control_R,
-    Gdk.KEY_Shift_L, Gdk.KEY_Shift_R,
-    Gdk.KEY_Alt_L, Gdk.KEY_Alt_R,
-    Gdk.KEY_Super_L, Gdk.KEY_Super_R,
-    Gdk.KEY_Meta_L, Gdk.KEY_Meta_R,
-    Gdk.KEY_ISO_Level3_Shift,
+    Gdk.KEY_Control_L: "ctrl_l", Gdk.KEY_Control_R: "ctrl_r",
+    Gdk.KEY_Shift_L: "shift_l", Gdk.KEY_Shift_R: "shift_r",
+    Gdk.KEY_Alt_L: "alt_l", Gdk.KEY_Alt_R: "alt_r",
+    Gdk.KEY_Super_L: "super_l", Gdk.KEY_Super_R: "super_r",
 }
+_MODIFIER_LABELS = {
+    "ctrl_l": "Left Control", "ctrl_r": "Right Control",
+    "shift_l": "Left Shift", "shift_r": "Right Shift",
+    "alt_l": "Left Alt", "alt_r": "Right Alt",
+    "super_l": "Left Super", "super_r": "Right Super",
+}
+
+
+def _format_keybind(keybind: str) -> str:
+    return _MODIFIER_LABELS.get(keybind, keybind)
 
 # Map shifted symbol keyvals back to their base keyvals (US layout)
 _SHIFTED_SYMBOL_MAP: dict[int, int] = {
@@ -156,7 +164,7 @@ class KeybindDialog(Adw.Window):
         self._hint.add_css_class("dim-label")
         body.append(self._hint)
 
-        self._display = Gtk.Label(label=current or "\u2014")
+        self._display = Gtk.Label(label=_format_keybind(current) if current else "\u2014")
         self._display.add_css_class("title-1")
         body.append(self._display)
 
@@ -176,7 +184,13 @@ class KeybindDialog(Adw.Window):
         self.add_controller(ctrl)
 
     def _on_key(self, _ctrl, keyval, _keycode, state):
-        if keyval in _MODIFIER_KEYVALS:
+        modifier_name = _MODIFIER_KEYVALS.get(keyval)
+        if modifier_name:
+            self.captured = modifier_name
+            self._display.set_label(_format_keybind(modifier_name))
+            self._hint.set_label("Press another key to change, or Apply.")
+            return True
+        if keyval in {Gdk.KEY_Meta_L, Gdk.KEY_Meta_R, Gdk.KEY_ISO_Level3_Shift}:
             return False
         if keyval == Gdk.KEY_Escape:
             self.close()
@@ -496,7 +510,7 @@ class M913Window(Adw.ApplicationWindow):
                     else:
                         self._btn_dropdowns[key].set_selected(0)
                         self._btn_keybinds[key] = action
-                        row.set_subtitle(f"\u2328 {action}")
+                        row.set_subtitle(f"\u2328 {_format_keybind(action)}")
                 else:
                     self._btn_dropdowns[key].set_selected(0)
                     self._btn_keybinds.pop(key, None)
@@ -516,7 +530,7 @@ class M913Window(Adw.ApplicationWindow):
         else:
             # (none) — show keybind subtitle if one exists
             kb = self._btn_keybinds.get(key)
-            self._btn_rows[key].set_subtitle(f"\u2328 {kb}" if kb else "")
+            self._btn_rows[key].set_subtitle(f"\u2328 {_format_keybind(kb)}" if kb else "")
 
     def _on_keybind_btn(self, _btn, key: str) -> None:
         label = dict(BUTTON_NAMES)[key]
@@ -531,7 +545,7 @@ class M913Window(Adw.ApplicationWindow):
             if dialog.captured:
                 self._btn_keybinds[key] = dialog.captured
                 self._btn_dropdowns[key].set_selected(0)
-                self._btn_rows[key].set_subtitle(f"\u2328 {dialog.captured}")
+                self._btn_rows[key].set_subtitle(f"\u2328 {_format_keybind(dialog.captured)}")
             else:
                 self._btn_keybinds.pop(key, None)
                 self._btn_rows[key].set_subtitle("")
