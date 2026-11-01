@@ -379,6 +379,25 @@ class M913Window(Adw.ApplicationWindow):
             btn_group.add(row)
         page.add(btn_group)
 
+        # ── Macros Group ─────────────────────────────────────────────
+        macro_group = Adw.PreferencesGroup(
+            title="Macros",
+            description="One macro per button: NAME [repeat:] step, step \u2026 "
+            "\u2014 e.g. \u201chold: click left 20\u201d. A button with a macro "
+            "ignores its mapping above.",
+        )
+        self._macro_rows: dict[str, Adw.EntryRow] = {}
+        for key, label in BUTTON_NAMES:
+            entry = Adw.EntryRow(title=label)
+            entry.set_tooltip_text(
+                "hold | toggle | 1-253 repeats, then steps like "
+                "\u201cclick left 20\u201d or \u201cdown ctrl, click c 50, up ctrl\u201d"
+            )
+            entry.connect("changed", self._on_macro_changed, key)
+            self._macro_rows[key] = entry
+            macro_group.add(entry)
+        page.add(macro_group)
+
         # ── Status bar ───────────────────────────────────────────────
         self._status_label = Gtk.Label(
             label="Ready", xalign=0, margin_start=12, margin_end=12,
@@ -436,6 +455,13 @@ class M913Window(Adw.ApplicationWindow):
                 if idx > 0:
                     buttons[key] = self._special_items[idx]
 
+        macros = {}
+        for key, row in self._macro_rows.items():
+            spec = row.get_text().strip()
+            if spec:
+                macros[key] = spec
+                buttons.pop(key, None)  # the macro owns the button
+
         return dict(
             dpi=dpi,
             led_mode=self._get_led_mode_name(),
@@ -444,6 +470,7 @@ class M913Window(Adw.ApplicationWindow):
             led_speed=int(self._speed_scale.get_value()),
             polling_rate=POLLING_RATES[self._polling_row.get_selected()],
             buttons=buttons if buttons else None,
+            macros=macros if macros else None,
         )
 
     def _build_current_ini(self) -> str:
@@ -501,7 +528,35 @@ class M913Window(Adw.ApplicationWindow):
                     self._btn_dropdowns[key].set_selected(0)
                     self._btn_keybinds.pop(key, None)
                     row.set_subtitle("")
+
+        # Macros come last: a macro-bound button is absent from [buttons], and
+        # its row has to say so rather than look unassigned.
+        for key, row in self._macro_rows.items():
+            row.set_text("")
+        if cfg.has_section("macros"):
+            for key, row in self._macro_rows.items():
+                if cfg.has_option("macros", key):
+                    row.set_text(cfg.get("macros", key))
         self._loading = False
+        for key in self._macro_rows:
+            self._sync_macro_row(key)
+
+    # ── Macro helpers ────────────────────────────────────────────────
+
+    def _on_macro_changed(self, _entry, key: str) -> None:
+        if self._loading:
+            return
+        self._sync_macro_row(key)
+
+    def _sync_macro_row(self, key: str) -> None:
+        """Mark a macro-bound button so its dropdown cannot be mistaken for it."""
+        row = self._btn_rows[key]
+        if self._macro_rows[key].get_text().strip():
+            row.set_subtitle("macro \u2014 overrides mapping above")
+        else:
+            kb = self._btn_keybinds.get(key)
+            idx = self._btn_dropdowns[key].get_selected()
+            row.set_subtitle(f"\u2328 {kb}" if idx == 0 and kb else "")
 
     # ── Button mapping handlers ──────────────────────────────────────
 
