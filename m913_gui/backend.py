@@ -25,6 +25,7 @@ def build_ini(
     led_speed: int | None = None,
     polling_rate: int | None = None,
     buttons: dict[str, str] | None = None,
+    macros: dict[str, str] | None = None,
 ) -> str:
     """Build an INI config string from the provided settings."""
     lines: list[str] = []
@@ -51,9 +52,20 @@ def build_ini(
             lines.append(f"speed={led_speed}")
         lines.append("")
 
+    if macros:
+        lines.append("[macros]")
+        for name, spec in macros.items():
+            lines.append(f"{name}={spec}")
+        lines.append("")
+
     if buttons:
+        # A macro binds its own button and m913-ctl rejects the same button in
+        # both sections, so whatever has a macro loses its plain mapping.
+        bound = set(macros or ())
         lines.append("[buttons]")
         for name, action in buttons.items():
+            if name.lstrip("button_") in bound or name in bound:
+                continue
             key = name if name.startswith("button_") else f"button_{name}"
             lines.append(f"{key}={action}")
         lines.append("")

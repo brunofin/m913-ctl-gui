@@ -12,8 +12,17 @@ Built on top of [m913-ctl](https://github.com/Qehbr/m913-ctl), the CLI configura
 - **LED lighting** — off, steady (color + brightness), respiration (color + speed), rainbow
 - **Polling rate** — 125, 250, 500, or 1000 Hz
 - **Button remapping** — all 16 buttons (12 side + left/right/middle/fire), key combos, multimedia keys
+- **Macros** — one macro per button, with the CLI's repeat modes and key sequences
 - **Profile management** — save/load INI config files (fully compatible with `m913-ctl --config`)
 - **Settings persistence** — remembers last-applied settings across sessions
+
+![Macros section](docs/macros.png "Macros section")
+
+A button with a macro is written to `[macros]` and left out of `[buttons]`, which is
+the only form `m913-ctl` accepts: a macro binds its own button, so listing the same
+button in both sections is an error. Macro text uses the CLI's spec, for example
+`hold: click left 20` (repeat while held), `toggle: click left 50` (repeat until a key
+is pressed), or `3: down ctrl, click c 50, up ctrl`.
 
 ## Requirements
 
