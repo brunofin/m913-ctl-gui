@@ -1,6 +1,7 @@
 """Main application window."""
 
 import configparser
+import glob
 import threading
 
 import gi
@@ -241,6 +242,20 @@ class M913Window(Adw.ApplicationWindow):
         # ── Header bar ───────────────────────────────────────────────
         header = Adw.HeaderBar()
 
+        # Battery as published by the m913-battery service (works over the
+        # 2.4 GHz dongle too, not only with the cable plugged in).
+        self._battery_icon = Gtk.Image()
+        self._battery_label = Gtk.Label()
+        self._battery_label.add_css_class("dim-label")
+        battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        battery_box.set_margin_start(12)
+        battery_box.set_tooltip_text("Mouse battery (10 % steps)")
+        battery_box.append(self._battery_icon)
+        battery_box.append(self._battery_label)
+        header.pack_start(battery_box)
+        self._refresh_battery()
+        GLib.timeout_add_seconds(30, self._refresh_battery)
+
         apply_btn = Gtk.Button(label="Apply")
         apply_btn.add_css_class("suggested-action")
         apply_btn.connect("clicked", self._on_apply)
@@ -404,6 +419,34 @@ class M913Window(Adw.ApplicationWindow):
             self._set_status("Loaded last-applied settings")
 
     # ── Helpers ──────────────────────────────────────────────────────
+
+    def _refresh_battery(self) -> bool:
+        """Show the battery the m913-battery service publishes in sysfs."""
+        capacity = None
+        for path in glob.glob("/sys/class/power_supply/hid-*m913*battery*/capacity"):
+            try:
+                with open(path) as handle:
+                    capacity = int(handle.read().strip())
+                break
+            except (OSError, ValueError):
+                continue
+        if capacity is None:
+            self._battery_icon.set_visible(False)
+            self._battery_label.set_visible(False)
+            return True
+        if capacity > 70:
+            icon = "battery-full-symbolic"
+        elif capacity > 40:
+            icon = "battery-good-symbolic"
+        elif capacity > 15:
+            icon = "battery-caution-symbolic"
+        else:
+            icon = "battery-empty-symbolic"
+        self._battery_icon.set_from_icon_name(icon)
+        self._battery_label.set_label(f"{capacity}\u00a0%")
+        self._battery_icon.set_visible(True)
+        self._battery_label.set_visible(True)
+        return True
 
     def _toast(self, msg: str) -> None:
         self._toast_overlay.add_toast(Adw.Toast(title=msg, timeout=3))
